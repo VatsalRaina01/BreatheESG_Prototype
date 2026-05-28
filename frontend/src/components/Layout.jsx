@@ -12,10 +12,10 @@ export default function Layout({ children, title }) {
   };
 
   const navItems = [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/upload', icon: Upload, label: 'Upload' },
-    { to: '/review', icon: ClipboardList, label: 'Review' },
-    { to: '/jobs', icon: FolderOpen, label: 'Jobs' },
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
+    { to: '/upload', icon: Upload, label: 'Ingest Data' },
+    { to: '/review', icon: ClipboardList, label: 'Review Flags' },
+    { to: '/jobs', icon: FolderOpen, label: 'Job History' },
   ];
 
   const initials = user?.email
@@ -42,7 +42,7 @@ export default function Layout({ children, title }) {
                 `sidebar-nav-item ${isActive ? 'active' : ''}`
               }
             >
-              <item.icon size={20} />
+              <item.icon size={18} />
               <span>{item.label}</span>
             </NavLink>
           ))}
@@ -60,21 +60,18 @@ export default function Layout({ children, title }) {
             className="btn-ghost"
             onClick={handleLogout}
             title="Logout"
-            style={{ marginLeft: 'auto' }}
+            style={{ marginLeft: 'auto', color: '#A8C4A2' }}
           >
-            <LogOut size={18} />
+            <LogOut size={16} />
           </button>
         </div>
       </aside>
 
-      {/* Top Bar */}
-      <div className="topbar">
-        <h1 className="topbar-title">{title}</h1>
-        <div className="topbar-actions" />
-      </div>
-
-      {/* Main Content */}
+      {/* Main Content — no top bar */}
       <main className="main-content page-enter">
+        <div className="page-header">
+          <h1 className="page-title">{title}</h1>
+        </div>
         {children}
       </main>
     </div>
