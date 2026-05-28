@@ -78,4 +78,4 @@ class Command(BaseCommand):
             status = 'created' if created else 'already exists'
             self.stdout.write(f"  Source: {src['name']} ({src['source_type']}) — {status}")
 
-        self.stdout.write(self.style.SUCCESS('\n✓ Demo data seeded successfully!'))
+        self.stdout.write(self.style.SUCCESS('\nDone! Demo data seeded successfully!'))
