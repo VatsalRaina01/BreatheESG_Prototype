@@ -17,10 +17,10 @@ function ProtectedRoute({ children }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: '#0F172A',
+          background: '#F5F4F0',
         }}
       >
-        <span className="spinner" style={{ width: 40, height: 40 }} />
+        <span className="spinner" style={{ width: 40, height: 40, borderLeftColor: '#2D6A4F' }} />
       </div>
     );
   }
