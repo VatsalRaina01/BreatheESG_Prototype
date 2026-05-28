@@ -5,8 +5,8 @@ import { getDashboardSummary, getJobs } from '../api/client';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Database, Clock, CheckCircle, AlertTriangle, FileText } from 'lucide-react';
 
-const SCOPE_COLORS = ['#10B981', '#3B82F6', '#8B5CF6'];
-const SOURCE_COLORS = { sap: '#059669', utility: '#3B82F6', travel: '#8B5CF6' };
+const SCOPE_COLORS = ['#2D6A4F', '#E9B44C', '#6B5B95'];
+const SOURCE_COLORS = { sap: '#2D6A4F', utility: '#E9B44C', travel: '#6B5B95' };
 
 export default function DashboardPage() {
   const [summary, setSummary] = useState(null);
@@ -78,9 +78,9 @@ export default function DashboardPage() {
       {/* Stat Cards */}
       <div className="stat-grid">
         {stats.map((stat) => (
-          <div className="stat-card" key={stat.label}>
+          <div className={`stat-card border-${stat.color}`} key={stat.label}>
             <div className={`stat-icon ${stat.color}`}>
-              <stat.icon size={24} />
+              <stat.icon size={22} />
             </div>
             <div>
               <div className="stat-value">{stat.value.toLocaleString()}</div>
@@ -113,11 +113,11 @@ export default function DashboardPage() {
                   ))}
                 </Pie>
                 <Tooltip
-                  contentStyle={{ background: '#1E293B', border: '1px solid #334155', borderRadius: 8 }}
-                  labelStyle={{ color: '#F8FAFC' }}
+                  contentStyle={{ background: '#FFFFFF', border: '1px solid #E5E2DC', borderRadius: 6, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}
+                  labelStyle={{ color: '#1A1A1A', fontWeight: 600 }}
                 />
                 <Legend
-                  formatter={(value) => <span style={{ color: '#94A3B8', fontSize: 13 }}>{value}</span>}
+                  formatter={(value) => <span style={{ color: '#6B6B6B', fontSize: 13, textTransform: 'capitalize' }}>{value}</span>}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -141,12 +141,12 @@ export default function DashboardPage() {
                   width={60}
                 />
                 <Tooltip
-                  contentStyle={{ background: '#1E293B', border: '1px solid #334155', borderRadius: 8 }}
-                  labelStyle={{ color: '#F8FAFC' }}
+                  contentStyle={{ background: '#FFFFFF', border: '1px solid #E5E2DC', borderRadius: 6, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}
+                  labelStyle={{ color: '#1A1A1A', fontWeight: 600 }}
                 />
                 <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={28}>
                   {sourceData.map((entry) => (
-                    <Cell key={entry.source} fill={SOURCE_COLORS[entry.source] || '#3B82F6'} />
+                    <Cell key={entry.source} fill={SOURCE_COLORS[entry.source] || '#2D6A4F'} />
                   ))}
                 </Bar>
               </BarChart>
