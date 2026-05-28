@@ -32,69 +32,68 @@ export default function LoginPage() {
 
   return (
     <div className="login-container">
-      <div className="login-bg-mesh" />
-
-      <form className="login-card" onSubmit={handleSubmit}>
-        <div className="login-logo">
-          <div className="login-logo-icon">
-            <Leaf size={28} />
+      {/* Left brand panel */}
+      <div className="login-brand-panel">
+        <div className="login-brand-logo">
+          <div className="login-brand-logo-icon">
+            <Leaf size={48} />
           </div>
-          <h1 className="login-logo-title">Breathe ESG</h1>
-          <p className="login-logo-subtitle">Emissions Data Intelligence</p>
+          <h1 className="login-brand-logo-title">Breathe ESG</h1>
         </div>
+        <p className="login-brand-tagline">Track. Verify. Report.</p>
+      </div>
 
-        {error && <div className="login-error">{error}</div>}
+      {/* Right form panel */}
+      <div className="login-form-panel">
+        <form className="login-form-inner" onSubmit={handleSubmit}>
+          <h2 className="login-form-heading">Sign in to your account</h2>
 
-        <div className="form-group">
-          <label className="form-label" htmlFor="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            className="form-input"
-            placeholder="analyst@company.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoFocus
-          />
-        </div>
+          {error && <div className="login-error">{error}</div>}
 
-        <div className="form-group">
-          <label className="form-label" htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            className="form-input"
-            placeholder="Enter your password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="email">Email</label>
+            <input
+              id="email"
+              type="email"
+              className="form-input"
+              placeholder="analyst@company.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoFocus
+            />
+          </div>
 
-        <button
-          type="submit"
-          className="btn btn-primary btn-lg btn-full"
-          disabled={loading}
-          style={{ marginTop: 8 }}
-        >
-          {loading ? (
-            <>
-              <span className="spinner" />
-              Signing in...
-            </>
-          ) : (
-            'Sign In'
-          )}
-        </button>
+          <div className="form-group">
+            <label className="form-label" htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              className="form-input"
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
 
-        <p
-          className="text-center text-muted"
-          style={{ marginTop: 24, fontSize: 12 }}
-        >
-          Secure emissions data management
-        </p>
-      </form>
+          <button
+            type="submit"
+            className="btn btn-primary btn-lg btn-full"
+            disabled={loading}
+            style={{ marginTop: 8 }}
+          >
+            {loading ? (
+              <>
+                <span className="spinner" />
+                Signing in...
+              </>
+            ) : (
+              'Sign In'
+            )}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
