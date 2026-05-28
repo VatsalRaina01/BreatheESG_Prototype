@@ -1,0 +1,13 @@
+Account_Number,Meter_Number,Service_Address,Billing_Period_Start,Billing_Period_End,Days_in_Period,Usage_kWh,Demand_kW,Read_Type,Rate_Schedule,Total_Charges,Currency
+ACC-10045,MTR-12345,"100 Industrial Pkwy, Building A",2026-01-01,2026-01-31,31,42500,185,Actual,General Service,5525.00,USD
+ACC-10045,MTR-12345,"100 Industrial Pkwy, Building A",2026-02-01,2026-02-28,28,38900,172,Estimated,General Service,5057.00,USD
+ACC-10045,MTR-12346,"100 Industrial Pkwy, Building B",2026-01-01,2026-01-31,31,28700,124,Actual,General Service,3731.00,USD
+ACC-10045,MTR-12346,"100 Industrial Pkwy, Building B",2026-02-01,2026-02-28,28,31200,131,Actual,General Service,4056.00,USD
+ACC-20078,MTR-45678,"250 Commerce Dr, Warehouse",2025-12-18,2026-01-17,31,67800,290,Actual,Industrial TOU,7458.00,USD
+ACC-20078,MTR-45678,"250 Commerce Dr, Warehouse",2026-01-18,2026-02-16,30,71200,305,Actual,Industrial TOU,7832.00,USD
+ACC-20078,MTR-45678,"250 Commerce Dr, Warehouse",2026-02-17,2026-03-19,31,64500,278,Estimated,Industrial TOU,7095.00,USD
+ACC-30091,MTR-78901,"500 Tech Blvd, Data Center",2026-01-01,2026-01-31,31,185000,820,Actual,Large Power,22200.00,USD
+ACC-30091,MTR-78901,"500 Tech Blvd, Data Center",2026-02-01,2026-02-28,28,178500,810,Actual,Large Power,21420.00,USD
+ACC-30091,MTR-78902,"500 Tech Blvd, UPS/Cooling",2026-01-01,2026-01-31,31,92000,405,Actual,Large Power,11040.00,USD
+ACC-10045,MTR-12345,"100 Industrial Pkwy, Building A",2026-03-01,2026-04-05,36,45200,190,Actual,General Service,5876.00,USD
+ACC-20078,MTR-45679,"250 Commerce Dr, Office Wing",2026-01-01,2026-01-31,31,-250,12,Actual,General Service,-32.50,USD

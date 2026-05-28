@@ -1,0 +1,16 @@
+Report_ID,Employee_Name,Employee_ID,Expense_Type,Transaction_Date,Vendor,Description,Origin,Destination,Cabin_Class,Amount,Currency,Payment_Method,Receipt
+RPT-2026-001,Sarah Chen,EMP-1001,Airfare,2026-01-15,United Airlines,Client meeting NYC,SFO,JFK,Economy,485.00,USD,Corporate Card,Yes
+RPT-2026-001,Sarah Chen,EMP-1001,Hotel,2026-01-15,Marriott Marquis,2 nights Manhattan,,,,389.00,USD,Corporate Card,Yes
+RPT-2026-001,Sarah Chen,EMP-1001,Taxi,2026-01-15,Yellow Cab,Airport to hotel,,,, 62.00,USD,Cash,Yes
+RPT-2026-002,James Mueller,EMP-1002,Airfare,2026-01-20,Lufthansa,EU office visit,ORD,FRA,Business,4850.00,EUR,Corporate Card,Yes
+RPT-2026-002,James Mueller,EMP-1002,Train,2026-01-21,Deutsche Bahn,Frankfurt to Munich,,,,145.00,EUR,Corporate Card,Yes
+RPT-2026-002,James Mueller,EMP-1002,Hotel,2026-01-21,Hotel Vier Jahreszeiten,3 nights Munich,,,,780.00,EUR,Corporate Card,Yes
+RPT-2026-002,James Mueller,EMP-1002,Taxi,2026-01-24,Munich Taxi,Hotel to airport,,,, 45.00,EUR,Cash,No
+RPT-2026-003,Priya Sharma,EMP-1003,Airfare,2026-02-03,Singapore Airlines,APAC conference,LAX,SIN,Business,6200.00,USD,Corporate Card,Yes
+RPT-2026-003,Priya Sharma,EMP-1003,Hotel,2026-02-03,Marina Bay Sands,4 nights Singapore,,,,1240.00,USD,Corporate Card,Yes
+RPT-2026-004,Tom Anderson,EMP-1004,Car Rental,2026-02-10,Hertz,Regional site visits,,,, 385.00,USD,Corporate Card,Yes
+RPT-2026-004,Tom Anderson,EMP-1004,Airfare,2026-02-10,Delta,Regional travel,ATL,DFW,,520.00,USD,Corporate Card,Yes
+RPT-2026-005,Maria Garcia,EMP-1005,Airfare,2026-02-18,British Airways,London investor meeting,JFK,LHR,First,8900.00,GBP,Corporate Card,Yes
+RPT-2026-005,Maria Garcia,EMP-1005,Hotel,2026-02-18,The Savoy,2 nights London,,,,950.00,GBP,Corporate Card,Yes
+RPT-2026-006,David Kim,EMP-1006,Airfare,2026-03-01,Korean Air,Tokyo conference,ICN,NRT,Economy,380.00,USD,Corporate Card,Yes
+RPT-2026-006,David Kim,EMP-1006,Airfare,2026-03-05,Qantas,Sydney meeting,NRT,SYD,Economy,1200.00,USD,Corporate Card,Yes
