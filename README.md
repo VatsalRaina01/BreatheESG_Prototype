@@ -31,10 +31,6 @@ npm install
 npm run dev
 ```
 
-### Demo Credentials
-- **Admin**: admin@breatheesg.com / admin123
-- **Analyst**: analyst@breatheesg.com / analyst123
-
 ## Data Sources
 
 | Source | Format | Scope |
