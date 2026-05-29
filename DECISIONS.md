@@ -1,78 +1,96 @@
 # Design Decisions — Breathe ESG
 
-## 1. Monolith over Microservices
+This document explains the key choices made while building this prototype, and the reasoning behind each one. Every decision was made deliberately — to ship something working and honest in 4 days, not to cut corners.
 
-**Decision**: Single Django application with a clean app structure (core, ingestion, review, dashboard).
+---
 
-**Why**: For a 4-day prototype, microservices add deployment complexity (service discovery, API gateways, distributed debugging) without any benefit. The monolith lets us iterate fast and deploy as one unit. The app boundaries are clean enough that extraction would be straightforward if needed.
+## 1. One Django app, not microservices
 
-**Alternative considered**: Separate ingestion service. Rejected because the pipeline is synchronous and fast enough for prototype file sizes (<10MB).
+**What we did:** Built a single Django application with four internal apps — `core`, `ingestion`, `review`, `dashboard`.
 
-## 2. Synchronous Pipeline (No Celery/Redis)
+**Why:** Microservices require service discovery, API gateways, distributed logging, and significantly more DevOps work. For a prototype, that overhead produces no benefit. The internal app boundaries are already clean, so splitting into separate services later would be a straightforward extraction.
 
-**Decision**: File upload → parse → normalize → persist all happens in one synchronous HTTP request.
+**What we avoided:** Premature complexity. The app works, deploys as one unit, and is easy to debug.
 
-**Why**: Celery + Redis adds infrastructure complexity. For files <10MB (~50k rows), synchronous processing completes in <5 seconds. This is acceptable for a prototype. The trade-off is that very large files (>100k rows) would block the request.
+---
 
-**What we'd add in production**: Celery task queue with Redis broker. The upload endpoint would return immediately with a `job_id`, and a background worker would process the file. We'd add WebSocket notifications for completion.
+## 2. Synchronous file processing — no background workers
 
-## 3. SQLite for Development, PostgreSQL-Ready
+**What we did:** When a file is uploaded, it is parsed and saved to the database in the same HTTP request. The user waits, then gets a result.
 
-**Decision**: Use SQLite locally with `dj-database-url` for easy PostgreSQL switch in production.
+**Why:** Adding a task queue (Celery) and message broker (Redis) is two extra infrastructure dependencies. For files under 10MB — which covers most real-world SAP and utility exports — processing completes in under 5 seconds. That is acceptable for a prototype.
 
-**Why**: Zero setup for development. All models use standard Django fields (no Postgres-specific types). JSON fields work in both SQLite (Django 5.x) and PostgreSQL. Switch to Postgres by setting `DATABASE_URL` env var.
+**Path to production:** The entire pipeline is already in one class (`IngestionPipeline.process()`). Wrapping it in a background task is about 5 lines of code. The architecture supports this without restructuring.
 
-## 4. JWT Authentication (Not Session-Based)
+---
 
-**Decision**: djangorestframework-simplejwt for stateless JWT auth.
+## 3. SQLite locally, PostgreSQL in production
 
-**Why**: The frontend is a React SPA making API calls. JWT works naturally with this pattern: store tokens in localStorage, attach to requests via interceptor. No server-side session storage needed.
+**What we did:** Used SQLite for local development. Used `dj-database-url` so the database is swapped just by setting an environment variable.
 
-**Security trade-off**: Tokens in localStorage are vulnerable to XSS. In production, we'd use httpOnly cookies. For a prototype, this is acceptable.
+**Why:** SQLite requires zero installation and zero setup. Every model uses standard Django fields — no Postgres-specific types. Switching databases is one environment variable change.
 
-## 5. Separate RawRecord from NormalizedRecord
+---
 
-**Decision**: Two-table design — RawRecord stores the original CSV row as JSON, NormalizedRecord stores the cleaned/classified version.
+## 4. JWT authentication, not session cookies
 
-**Why**: Auditability. If an analyst questions a normalized value, they can view the raw data and see exactly what the parser received. If a parser has a bug, we can re-process from raw records without re-uploading.
+**What we did:** Used `djangorestframework-simplejwt` to issue tokens on login. The React frontend stores the token and attaches it to every API request.
 
-**Alternative considered**: Single table with both `raw_json` and structured columns. Rejected because it mixes concerns and makes migrations harder.
+**Why:** React SPAs and session-based auth are a poor fit — sessions require sticky servers and CSRF handling. JWTs are stateless, simpler to implement, and the standard approach for this architecture.
 
-## 6. Source-Specific Parsers with a Common Interface
+**Acknowledged trade-off:** Tokens stored in localStorage are theoretically vulnerable to XSS. In production, we would use httpOnly cookies instead. For a prototype, this is an acceptable and well-understood trade-off.
 
-**Decision**: Three separate parser classes (SAPParser, UtilityParser, TravelParser) inheriting from BaseParser.
+---
 
-**Why**: Each source has fundamentally different challenges:
-- SAP: German headers, semicolons, YYYYMMDD dates, comma decimals
-- Utility: billing periods, estimated reads, meter numbers
-- Travel: airport codes, Haversine distance, cabin classes
+## 5. Two separate tables for raw and normalized data
 
-A "universal parser" would be a mess of if/else. Separate parsers keep each one focused and testable.
+**What we did:** `RawRecord` stores the original CSV row as JSON, unchanged. `NormalizedRecord` stores the cleaned, classified version.
 
-## 7. JSON Fields for Source Metadata
+**Why:** If an analyst questions a normalized value — say, a unit conversion looks wrong — they can click "View Raw Data" and see exactly what the parser received. If a bug is found in the parser, we can re-process all raw records without asking clients to re-upload files. Mixing raw and normalized data in one table would lose this capability.
 
-**Decision**: `source_metadata` is a JSONField rather than 30+ nullable columns.
+---
 
-**Why**: SAP records have `plant_code`, `po_number`, `vendor`. Utility records have `meter_number`, `read_type`, `billing_period_start`. Travel records have `origin`, `destination`, `cabin_class`. These fields are different per source type. JSON keeps the schema clean while preserving all source-specific data.
+## 6. One parser class per source type
 
-**Trade-off**: Can't filter on metadata fields via SQL indexes. For a prototype, this is fine. In production, we'd add dedicated columns for the most queried fields.
+**What we did:** Three parser classes — `SAPParser`, `UtilityParser`, `TravelParser` — all inheriting from `BaseParser`.
 
-## 8. Tenant-per-Row Isolation
+**Why:** The three sources have fundamentally different parsing challenges:
+- **SAP:** Semicolons, German headers, German decimal format (comma), YYYYMMDD dates, leading zeros on material numbers
+- **Utility:** Billing periods that cross month boundaries, "Estimated" vs "Actual" reads, meter-to-facility mapping
+- **Travel:** IATA airport codes, Haversine distance calculation, cabin class emission factors
 
-**Decision**: All tables have a `tenant_id` FK. Every queryset filters on `request.user.tenant`.
+A single universal parser would be an unmaintainable tangle of conditionals. Separate classes keep each parser focused, readable, and independently testable.
 
-**Why**: Simplest multi-tenant approach. Single database, single deployment. The TenantMiddleware + TenantAccessPermission enforce this automatically.
+---
 
-**Alternative considered**: Schema-per-tenant (separate Postgres schemas). Too complex for a prototype.
+## 7. JSON field for source-specific metadata
 
-## 9. Flag Severity Levels (Info/Warning/Critical)
+**What we did:** Each `NormalizedRecord` has a `source_metadata` JSONField that stores source-specific fields (plant code for SAP, meter number for utility, airport codes for travel).
 
-**Decision**: Three severity levels for anomaly flags, with the most severe determining the row's overall severity.
+**Why:** SAP records need `plant_code`, `po_number`, `vendor_id`. Utility records need `meter_number`, `read_type`, `billing_period`. Travel records need `origin_iata`, `destination_iata`, `cabin_class`. Adding a column for each would produce a table with 30+ columns that are mostly empty for any given record type. JSON keeps the schema clean while preserving all source data.
 
-**Why**: Not all flags are equal. "Missing cost center" (info) shouldn't get the same visual treatment as "Negative usage" (critical). The severity drives the UI: critical flags show red pulsing dots, warnings show amber.
+**Trade-off:** JSON fields cannot be efficiently indexed. For a prototype, filtering by metadata is not required. In production, the most-queried metadata fields would be promoted to proper indexed columns.
 
-## 10. Review Workflow: Pending → Approved/Rejected → Locked
+---
 
-**Decision**: Four-state lifecycle with "locked" as a terminal state.
+## 8. Multi-tenancy via row-level filtering
 
-**Why**: "Locked" means the record has been signed off and is ready for auditors. Locked records cannot be modified — this prevents accidental changes after sign-off. The ReviewAction table records every transition for the audit trail.
+**What we did:** Every table has a `tenant_id` foreign key. Every database query automatically filters on the logged-in user's company. This is enforced in middleware, not in individual views.
+
+**Why:** It is the simplest multi-tenant approach that works on a single database deployment. The alternative — separate database schemas per tenant — would require schema migration tooling and significantly more complexity.
+
+---
+
+## 9. Three flag severity levels
+
+**What we did:** Flags are classified as `info`, `warning`, or `critical`. The most severe flag on a record determines its visual treatment in the UI.
+
+**Why:** Not all anomalies are equal. "Missing cost center" is worth noting but does not block review. "Negative fuel quantity" is a data error that must be resolved before sign-off. Treating all flags the same would bury critical issues in noise. Critical flags show a pulsing red dot; warnings show amber — analysts see the difference immediately.
+
+---
+
+## 10. Four-state review lifecycle: pending → approved / rejected → locked
+
+**What we did:** Records move through `pending`, then `approved` or `rejected`, then optionally `locked`. Every transition is recorded in the `ReviewAction` table.
+
+**Why:** `locked` represents a record that has been formally signed off and is ready for external auditors. Making locked records immutable prevents accidental changes after sign-off. The `ReviewAction` log means every state change has a timestamp, an actor, and an optional comment — exactly what auditors require.

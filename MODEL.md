@@ -1,136 +1,156 @@
 # Data Model — Breathe ESG
 
-## Design Philosophy
+## Core Idea
 
-The data model follows a **separation of concerns** principle: raw data is stored immutably, normalized data is where business logic lives, and review actions form an append-only audit log. This means an auditor can trace any number back to the exact row in the original file.
+Every uploaded file goes through three stages in the database:
 
-## Entity Relationship
+1. **Store it raw** — exactly as the client sent it, never touched again
+2. **Clean and classify it** — produce a normalized record that analysts actually review
+3. **Record every decision** — an append-only log of who approved or rejected what, and when
+
+This means an auditor can always trace a final carbon figure back to the exact row in the original file.
+
+---
+
+## How the Tables Relate
 
 ```
-Tenant (1) ──→ (N) User
-Tenant (1) ──→ (N) DataSource
-Tenant (1) ──→ (N) IngestionJob
-DataSource (1) ──→ (N) IngestionJob
-IngestionJob (1) ──→ (N) RawRecord
-RawRecord (1) ──→ (1) NormalizedRecord
-NormalizedRecord (1) ──→ (N) ReviewAction
+Company (1) ──→ (many) Users
+Company (1) ──→ (many) DataSources
+Company (1) ──→ (many) IngestionJobs
+DataSource  (1) ──→ (many) IngestionJobs
+IngestionJob (1) ──→ (many) RawRecords
+RawRecord    (1) ──→ (1)   NormalizedRecord
+NormalizedRecord (1) ──→ (many) ReviewActions
 ```
 
-## Tables
+---
 
-### Tenant
-Multi-tenancy boundary. All data is isolated by `tenant_id` — every query filters on it. This is a deliberate choice for a prototype: we use row-level isolation rather than schema-per-tenant because it's simpler to deploy on a single database.
+## The Tables
 
-| Field | Type | Notes |
-|-------|------|-------|
-| id | UUID | Primary key |
-| name | varchar(255) | e.g., "Acme Corporation" |
-| slug | slug (unique) | URL-safe identifier |
-| is_active | boolean | Soft-disable capability |
-| created_at | timestamp | |
+### Company (Tenant)
+One row per client company. Every other table has a `company_id` column so data from different companies never mixes.
+
+| Field | What it stores |
+|-------|----------------|
+| id | Unique identifier (random UUID, not 1-2-3) |
+| name | "Acme Corp" |
+| slug | URL-safe short name, e.g. `acme-corp` |
+| is_active | Lets us disable a company without deleting data |
+
+---
 
 ### User
-Extends Django's AbstractUser. Uses email as the login identifier.
+Standard login record. Email is the username.
 
-| Field | Type | Notes |
-|-------|------|-------|
-| id | UUID | Primary key |
-| tenant | FK → Tenant | Multi-tenant isolation |
-| role | enum | admin, analyst, viewer |
-| email | email | Used for login |
-| username | varchar | Set to email by seed command |
+| Field | What it stores |
+|-------|----------------|
+| id | UUID |
+| company | Which company this user belongs to |
+| role | `admin`, `analyst`, or `viewer` |
+| email | Used for login |
+
+---
 
 ### DataSource
-Represents a configured data feed (e.g., "SAP Munich Plant", "ComEd Portal").
+Represents a specific data feed — not just "SAP" generically, but "SAP Munich Plant" or "ComEd Chicago Portal". One company can have many sources.
 
-| Field | Type | Notes |
-|-------|------|-------|
-| id | UUID | Primary key |
-| tenant | FK → Tenant | |
-| source_type | enum | sap, utility, travel |
-| name | varchar(255) | Human-readable label |
-| config | JSON | Extensible configuration |
-| created_by | FK → User | Who set it up |
+| Field | What it stores |
+|-------|----------------|
+| id | UUID |
+| company | Owner company |
+| source_type | `sap`, `utility`, or `travel` |
+| name | Human label set by the user |
+| config | JSON for any extra config (API keys, column mappings, etc.) |
+
+---
 
 ### IngestionJob
-Tracks a single file upload + processing run.
+One row per file upload. Tracks what happened during processing.
 
-| Field | Type | Notes |
-|-------|------|-------|
-| id | UUID | Primary key |
-| tenant | FK → Tenant | |
-| data_source | FK → DataSource | Which source |
-| file_name | varchar(500) | Original filename |
-| file_hash | varchar(64) | SHA-256 for dedup |
-| status | enum | processing, completed, failed |
-| total_rows | int | Rows in file |
-| parsed_rows | int | Successfully parsed |
-| failed_rows | int | Parse errors |
-| flagged_rows | int | Anomalies detected |
-| error_log | JSON | Detailed error messages |
+| Field | What it stores |
+|-------|----------------|
+| id | UUID |
+| data_source | Which source this file came from |
+| file_name | Original filename |
+| file_hash | SHA-256 fingerprint — used to detect duplicate uploads |
+| status | `processing`, `completed`, or `failed` |
+| total_rows | How many rows were in the file |
+| parsed_rows | How many parsed successfully |
+| failed_rows | How many had parse errors |
+| flagged_rows | How many were flagged as suspicious |
+| error_log | JSON list of exactly what went wrong on which row |
+
+---
 
 ### RawRecord
-**Immutable**. Stores the original row exactly as it appeared in the file. Never modified after creation. This is the audit trail anchor.
+**Never modified after creation.** Stores the original CSV row as-is, so there is always a ground truth to refer back to.
 
-| Field | Type | Notes |
-|-------|------|-------|
-| id | UUID | Primary key |
-| tenant | FK → Tenant | |
-| ingestion_job | FK → IngestionJob | |
-| row_number | int | Position in file |
-| raw_data | JSON | The original row dict |
-| parse_status | enum | success, error |
-| parse_errors | JSON | What went wrong |
+| Field | What it stores |
+|-------|----------------|
+| id | UUID |
+| ingestion_job | Which upload this came from |
+| row_number | Which line in the file |
+| raw_data | The original row as a JSON dictionary |
+| parse_status | `success` or `error` |
+| parse_errors | What went wrong, if anything |
+
+---
 
 ### NormalizedRecord
-The "working copy" — cleaned, validated, and classified. This is what analysts review. One-to-one with RawRecord.
+The working copy that analysts see and review. One-to-one with RawRecord — every raw row gets exactly one normalized record.
 
-| Field | Type | Notes |
-|-------|------|-------|
-| id | UUID | Primary key |
-| tenant | FK → Tenant | |
-| raw_record | OneToOne → RawRecord | Back-reference to original |
-| source_type | enum | sap, utility, travel |
-| scope | enum | scope_1, scope_2, scope_3 |
-| category | varchar | diesel_fuel, electricity, flight, etc. |
-| activity_date | date | When the activity occurred |
-| description | text | Human-readable description |
-| quantity | decimal(18,4) | Numeric value |
-| unit | varchar | Normalized unit name |
-| original_unit | varchar | Unit from source file |
-| amount | decimal(18,2) | Monetary value |
-| currency | varchar | ISO currency code |
-| source_metadata | JSON | Source-specific fields |
-| is_flagged | boolean | Has anomalies |
-| flag_reasons | JSON | List of flag descriptions |
-| flag_severity | enum | info, warning, critical |
-| review_status | enum | pending, approved, rejected, locked |
-| reviewed_by | FK → User | Who reviewed |
-| reviewed_at | timestamp | When reviewed |
-| review_comment | text | Reviewer's note |
+| Field | What it stores |
+|-------|----------------|
+| id | UUID |
+| raw_record | Link back to the original raw row |
+| source_type | `sap`, `utility`, or `travel` |
+| scope | `scope_1`, `scope_2`, or `scope_3` |
+| category | `diesel_fuel`, `electricity`, `flight`, etc. |
+| activity_date | When the activity happened |
+| description | Plain-English description |
+| quantity | The numeric value (e.g. 500) |
+| unit | Normalized unit (e.g. `kWh`, `liters`) |
+| original_unit | Whatever unit the source file used |
+| amount | Monetary value if present |
+| currency | ISO code (USD, EUR, etc.) |
+| source_metadata | JSON — stores source-specific fields (meter number, PO number, airport codes, etc.) |
+| is_flagged | True if the system detected something suspicious |
+| flag_reasons | List of plain-English flag descriptions |
+| flag_severity | `info`, `warning`, or `critical` |
+| review_status | `pending`, `approved`, `rejected`, or `locked` |
+| reviewed_by | Who made the decision |
+| reviewed_at | When the decision was made |
+| review_comment | What they said |
+
+---
 
 ### ReviewAction
-**Append-only audit log**. Every status change, flag, or lock is recorded here. Never modified or deleted.
+**Append-only log.** Every status change writes a new row here. Nothing is ever updated or deleted. This is the audit trail.
 
-| Field | Type | Notes |
-|-------|------|-------|
-| id | UUID | Primary key |
-| normalized_record | FK → NormalizedRecord | |
-| action | enum | approved, rejected, flagged, locked, etc. |
-| previous_status | varchar | Status before action |
-| new_status | varchar | Status after action |
-| comment | text | Reviewer's note |
-| performed_by | FK → User | Who did it |
-| performed_at | timestamp | When |
+| Field | What it stores |
+|-------|----------------|
+| id | UUID |
+| normalized_record | Which record was acted on |
+| action | `approved`, `rejected`, `flagged`, `locked` |
+| previous_status | What the status was before |
+| new_status | What it changed to |
+| comment | Optional note |
+| performed_by | Who did it |
+| performed_at | When |
 
-## Key Design Decisions
+---
 
-1. **RawRecord is immutable** — we never modify it. This is critical for auditability: you can always compare normalized data back to what was uploaded.
+## Four Design Rules We Followed
 
-2. **UUID primary keys** — no auto-increment leakage. UUIDs don't reveal record counts and work well across distributed systems.
+**1. Never touch raw data.**  
+RawRecord is written once and never modified. If a parser has a bug or a normalized value is questioned, the original file row is always there for reference.
 
-3. **JSON fields for metadata** — each source type has different fields (SAP has plant_code, utility has meter_number, travel has airport codes). Rather than 50+ nullable columns, we store source-specific data in a JSON field. The normalized fields (quantity, unit, date, scope) are proper columns for filtering.
+**2. Random IDs everywhere.**  
+We use UUIDs instead of auto-increment numbers. This prevents leaking how many records exist and works safely if we ever need to merge databases.
 
-4. **Review status lifecycle**: `pending → approved → locked` or `pending → rejected`. Locked records cannot be modified — they're audit-ready.
+**3. JSON for source-specific fields.**  
+SAP has plant codes and PO numbers. Utility has meter numbers. Travel has airport codes. Rather than adding 30+ columns that are mostly empty, we store these in a `source_metadata` JSON field. The fields that analysts filter and sort by (quantity, date, scope) are proper indexed columns.
 
-5. **Tenant isolation via FK** — every query filters on `tenant_id`. This is enforced by the `TenantMiddleware` + `TenantAccessPermission`.
+**4. Review lifecycle: pending → approved / rejected → locked.**  
+`locked` is the final state. It means the record has been signed off and is ready for external auditors. Locked records cannot be changed — this is intentional.

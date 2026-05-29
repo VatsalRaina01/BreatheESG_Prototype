@@ -1,85 +1,103 @@
 # Trade-offs — Breathe ESG
 
-## What We Built vs. What Production Needs
+This document honestly lists what we chose not to build, why we made that call, and what adding it in production would look like. Being clear about scope is not a weakness — it is engineering judgment.
 
-This document honestly outlines what we deliberately didn't build and why.
+---
 
-### 1. Asynchronous Processing
+## 1. No background task queue (no Celery / Redis)
 
-**What we did**: Synchronous pipeline — upload blocks until processing completes.
+**What exists:** Processing happens synchronously — the user uploads a file and waits for a response.
 
-**What production needs**: Celery + Redis for background processing. WebSocket notifications for completion. Progress bars for large files.
+**What production needs:** A task queue (Celery) and message broker (Redis) so large file processing runs in the background. The UI would show a progress indicator and notify the user when done.
 
-**Why we skipped it**: Adds 2 infrastructure dependencies (Redis, Celery worker). For <10MB files, synchronous is fast enough. The pipeline architecture is already structured for easy async extraction — `IngestionPipeline.process()` can be wrapped in a `@shared_task` with ~5 lines of code.
+**Why we skipped it:** For files under 10MB, synchronous processing takes under 5 seconds. That covers the vast majority of real client exports. The pipeline is already a single isolated class (`IngestionPipeline.process()`) — wrapping it in a background task requires minimal restructuring.
 
-### 2. File Storage
+---
 
-**What we did**: Files are parsed in-memory and only the row data is persisted (as JSON in RawRecord).
+## 2. No permanent file storage
 
-**What production needs**: S3/GCS object storage. Store the original file for re-processing. Virus scanning. Presigned upload URLs.
+**What exists:** Files are read into memory, parsed, and discarded. Only the row data is saved (as `RawRecord` in the database).
 
-**Why we skipped it**: In-memory parsing is simpler and avoids cloud storage dependency. The RawRecord JSON preserves the original data.
+**What production needs:** Object storage (S3 or GCS) to keep the original file permanently. This allows re-parsing with updated logic, regulatory compliance, and forensic review of the exact file a client submitted.
 
-### 3. Emission Factor Calculation
+**Why we skipped it:** Cloud storage adds an external dependency and billing. For a prototype, the `RawRecord` table preserves the original row data, which is sufficient. Adding S3 storage is an isolated change to the upload endpoint.
 
-**What we did**: Classify activity into scopes and categories. Don't compute CO2e.
+---
 
-**What production needs**: Emission factor database (DEFRA, EPA, IEA). CO2e = activity data × emission factor. Custom factors per tenant. Factor versioning.
+## 3. No CO2 calculation
 
-**Why we skipped it**: Emission factors are a domain specialization, not a data engineering problem. The data model supports this — just add an `emission_factor` and `co2e_kg` column to NormalizedRecord.
+**What exists:** Records are classified into scopes (1, 2, 3) and categories (diesel fuel, electricity, flight). The CO2 figure is not computed.
 
-### 4. Responsive Mobile Layout
+**What production needs:** An emission factor database (DEFRA, EPA, IEA by country and fuel type). The calculation is: `CO2e = quantity × emission_factor`. Factors must be versioned because they change year to year. Some clients need custom factors.
 
-**What we did**: Desktop-optimized layout.
+**Why we skipped it:** Emission factor management is a domain specialization and a product decision, not a data engineering problem. The data model already supports it — adding `emission_factor` and `co2e_kg` columns to `NormalizedRecord` and populating them after parsing is a well-defined next step.
 
-**What production needs**: Responsive breakpoints. Mobile-first table views (card layout). Touch-friendly interactions.
+---
 
-**Why we skipped it**: Analyst review is a desktop workflow. Mobile is nice-to-have, not critical for the prototype.
+## 4. Desktop-only layout
 
-### 5. Real-Time Updates
+**What exists:** The UI is designed for wide screens — data tables, sidebar navigation, detail panels.
 
-**What we did**: Manual page refresh to see new data.
+**What production needs:** Responsive breakpoints for tablets and phones. Card-based table views on mobile. Touch-friendly controls.
 
-**What production needs**: WebSocket subscriptions (Django Channels). Real-time dashboard counters. Push notifications.
+**Why we skipped it:** ESG analyst work — reviewing hundreds of rows, approving records, examining raw data — happens on desktop. Mobile is a future convenience, not a day-one requirement.
 
-**Why we skipped it**: Adds Django Channels + Redis dependency. Not needed for a prototype where one analyst uploads and reviews sequentially.
+---
 
-### 6. Advanced Search & Filtering
+## 5. No real-time updates
 
-**What we did**: Basic filter dropdowns (source, scope, status) + text search.
+**What exists:** Data is loaded when the page loads. The user refreshes manually to see changes.
 
-**What production needs**: Date range picker. Quantity range filters. Full-text search with ranking. Saved filter presets.
+**What production needs:** WebSocket connections (Django Channels) so the dashboard updates live when new data is processed. Push notifications when a job completes.
 
-**Why we skipped it**: The basic filters demonstrate the capability. The Django backend already supports all these filters via query parameters.
+**Why we skipped it:** Adds Django Channels and Redis as dependencies. The current workflow — one analyst uploads, processes, reviews — is sequential and does not require live updates for a prototype.
 
-### 7. User Management & RBAC
+---
 
-**What we did**: Two roles (admin, analyst) with hardcoded permissions.
+## 6. Basic filtering only
 
-**What production needs**: Fine-grained permissions (per source type, per action). User invitation flow. SSO/SAML. Password reset. Multi-factor auth.
+**What exists:** Filter dropdowns for source type, scope, and review status. A text search field.
 
-**Why we skipped it**: Auth is infrastructure, not the interesting part of this assignment. JWT + role field demonstrates the concept.
+**What production needs:** Date range pickers, quantity range sliders, multi-value filters, full-text search with ranking, saved filter presets.
 
-### 8. Error Recovery & Retries
+**Why we skipped it:** The basic filters demonstrate the core capability and are sufficient to navigate realistic data volumes. The backend already accepts all these as query parameters — extending the UI is a front-end task.
 
-**What we did**: Failed rows are skipped and logged. No retry mechanism.
+---
 
-**What production needs**: Row-level retry. Partial re-upload. Error correction UI. Duplicate detection via file hash.
+## 7. Simple role system — no fine-grained permissions
 
-**Why we skipped it**: We do log all errors with row numbers. We do compute file hashes. We just don't expose a retry UI.
+**What exists:** Two roles: `admin` and `analyst`. Admins manage sources; analysts review records.
 
-### 9. Automated Testing
+**What production needs:** Per-source-type permissions, per-company admin delegation, SSO/SAML integration, password reset flow, multi-factor authentication.
 
-**What we did**: Manual testing via test_upload.py script and API exploration.
+**Why we skipped it:** The role architecture is correctly modelled and enforced. Extending to fine-grained permissions is a configuration expansion, not a structural change. SSO and MFA are infrastructure decisions made at the company level and are out of scope for a prototype.
 
-**What production needs**: Unit tests for each parser. Integration tests for the pipeline. E2E tests for the API. Frontend component tests.
+---
 
-**Why we skipped it**: Time constraint. The parsers are the most testable components — each has a clean input/output contract that maps well to pytest parametrize.
+## 8. No row-level retry for failed rows
 
-### 10. Data Export
+**What exists:** Rows that fail to parse are skipped and logged with their row number and error reason in `IngestionJob.error_log`. The job completes for all other rows.
 
-**What we did**: API-only access to records.
+**What production needs:** An error correction UI where analysts can fix a bad row and resubmit it. Partial re-upload for corrected files.
 
-**What production needs**: CSV/Excel export. PDF reports. Audit-ready report generation. Integration with GHG reporting tools.
+**Why we skipped it:** The error log provides enough information to fix the source file and re-upload. File-level deduplication (via SHA-256 hash) prevents double-counting on re-upload.
 
-**Why we skipped it**: The API returns all data needed for export. A CSV export endpoint would be ~20 lines of code.
+---
+
+## 9. No automated tests
+
+**What exists:** A `test_upload.py` script for manual API testing. The API was validated by hand during development.
+
+**What production needs:** Unit tests for each parser covering edge cases (German decimals, estimated reads, unknown airport codes). Integration tests for the full pipeline. Frontend component tests.
+
+**Why we skipped it:** Time constraint. The parsers are the highest-value testing target because they have clean input/output contracts and cover the most complex logic. This is the first thing to add after the prototype is validated.
+
+---
+
+## 10. API access only — no data export
+
+**What exists:** All record data is available through the REST API. Analysts view records in the browser.
+
+**What production needs:** CSV and Excel export from the review table. Audit-ready PDF reports. Integration with GHG reporting tools like Persefoni or Watershed.
+
+**Why we skipped it:** The API already returns all the data needed for export. A CSV download endpoint is roughly 20 lines of Django code. The harder problem — formatted audit reports — is a product design question, not a data problem.
