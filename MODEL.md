@@ -15,13 +15,13 @@ This means an auditor can always trace a final carbon figure back to the exact r
 ## How the Tables Relate
 
 ```
-Company (1) ──→ (many) Users
-Company (1) ──→ (many) DataSources
-Company (1) ──→ (many) IngestionJobs
-DataSource  (1) ──→ (many) IngestionJobs
-IngestionJob (1) ──→ (many) RawRecords
-RawRecord    (1) ──→ (1)   NormalizedRecord
-NormalizedRecord (1) ──→ (many) ReviewActions
+Company (1) ──> (many) Users
+Company (1) ──> (many) DataSources
+Company (1) ──> (many) IngestionJobs
+DataSource  (1) ──> (many) IngestionJobs
+IngestionJob (1) ──> (many) RawRecords
+RawRecord    (1) ──> (1)   NormalizedRecord
+NormalizedRecord (1) ──> (many) ReviewActions
 ```
 
 ---
@@ -147,10 +147,10 @@ The working copy that analysts see and review. One-to-one with RawRecord — eve
 RawRecord is written once and never modified. If a parser has a bug or a normalized value is questioned, the original file row is always there for reference.
 
 **2. Random IDs everywhere.**  
-We use UUIDs instead of auto-increment numbers. This prevents leaking how many records exist and works safely if we ever need to merge databases.
+I use UUIDs instead of auto-increment numbers. This prevents leaking how many records exist and works safely if I ever need to merge databases.
 
 **3. JSON for source-specific fields.**  
-SAP has plant codes and PO numbers. Utility has meter numbers. Travel has airport codes. Rather than adding 30+ columns that are mostly empty, we store these in a `source_metadata` JSON field. The fields that analysts filter and sort by (quantity, date, scope) are proper indexed columns.
+SAP has plant codes and PO numbers. Utility has meter numbers. Travel has airport codes. Rather than adding 30+ columns that are mostly empty, I store these in a `source_metadata` JSON field. The fields that analysts filter and sort by (quantity, date, scope) are proper indexed columns.
 
 **4. Review lifecycle: pending → approved / rejected → locked.**  
 `locked` is the final state. It means the record has been signed off and is ready for external auditors. Locked records cannot be changed — this is intentional.

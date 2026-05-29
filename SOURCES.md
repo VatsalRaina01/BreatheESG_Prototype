@@ -1,6 +1,6 @@
 # Sources — Breathe ESG
 
-This document lists the real-world data formats, standards, and APIs that informed how we built each parser and how we classified emissions. Every design choice in the parsers traces back to something that exists in the real world.
+This document lists the real-world data formats, standards, and APIs that informed how I built each parser and how I classified emissions. Every design choice in the parsers traces back to something that exists in the real world.
 
 ---
 
@@ -9,7 +9,7 @@ This document lists the real-world data formats, standards, and APIs that inform
 ### ME2M and MB51 Transaction Exports
 The two most common SAP transactions for extracting procurement and materials data are ME2M (Purchase Orders by Material) and MB51 (Material Document List). When exported from a German-language SAP instance, these produce semicolon-delimited flat files with German column headers.
 
-Key format quirks we handled:
+Key format quirks I handled:
 - **Decimal separator:** German format uses a comma — `15.000,50` means fifteen thousand and fifty cents, not fifteen and a half
 - **Date format:** Varies by user setting — `YYYYMMDD`, `DD.MM.YYYY`, or `YYYY-MM-DD` are all common
 - **Leading zeros:** Material and vendor numbers are zero-padded to 18 digits (e.g. `000000000050001234`)
@@ -50,7 +50,7 @@ Source: greenbuttondata.org
 ### Utility Portal CSV Exports
 Most US utilities — ComEd, PG&E, ConEdison — allow business customers to download billing history as CSV from their online portals. Common columns are: Account Number, Meter Number, Service Address, Billing Period Start, Billing Period End, Usage (kWh), Peak Demand (kW), Total Charges.
 
-Key challenges we address:
+Key challenges I address:
 - **Billing periods cross month boundaries** — a bill from Nov 14 to Dec 13 cannot be naively assigned to "November"
 - **Estimated reads** — meters marked 'E' or 'Estimated' are flagged for review because they may be corrected in a later bill
 
@@ -73,9 +73,9 @@ Concur also provides a programmatic API (v4) via OAuth 2.0 for direct integratio
 Source: developer.concur.com/api-reference
 
 ### IATA Airport Codes and Distance Calculation
-All flight records use three-letter IATA codes (e.g. `DEL`, `LHR`, `JFK`). Flight distance is almost never included in expense data — only the airport codes. To estimate emissions we need distance.
+All flight records use three-letter IATA codes (e.g. `DEL`, `LHR`, `JFK`). Flight distance is almost never included in expense data — only the airport codes. To estimate emissions I need distance.
 
-We use the **Haversine formula** to compute great-circle distance (the shortest path over the Earth's surface) between two airports using their latitude and longitude coordinates. The GHG Protocol classifies flights as:
+I use the **Haversine formula** to compute great-circle distance (the shortest path over the Earth's surface) between two airports using their latitude and longitude coordinates. The GHG Protocol classifies flights as:
 - **Short-haul:** under 3,700 km — applies a lower emission factor per passenger-km
 - **Long-haul:** over 3,700 km — applies a higher factor, especially in business and first class
 
@@ -95,7 +95,7 @@ Source: GHG Protocol Technical Guidance for Calculating Scope 3 Emissions, Categ
 ## Technology Choices
 
 ### Django REST Framework
-Production-grade API layer for Django. Provides serialization, pagination, filtering, authentication, and permission classes out of the box. We use it because it is well-documented, widely deployed in production, and eliminates boilerplate without hiding important behaviour.
+Production-grade API layer for Django. Provides serialization, pagination, filtering, authentication, and permission classes out of the box. I use it because it is well-documented, widely deployed in production, and eliminates boilerplate without hiding important behaviour.
 
 Source: django-rest-framework.org
 
