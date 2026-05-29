@@ -552,11 +552,41 @@ input, select, textarea, button {
   border-color: var(--accent-red);
 }
 
+.password-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  transition: color var(--transition-fast);
+}
+
+.password-toggle-btn:hover {
+  color: var(--text-secondary);
+}
+
+.password-input-wrapper .form-input {
+  padding-right: 40px;
+}
+
 .form-error {
   font-size: 12px;
   color: var(--accent-red);
   margin-top: 4px;
 }
+
 
 .form-select {
   width: 100%;
