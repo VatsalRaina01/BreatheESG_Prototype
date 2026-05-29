@@ -58,6 +58,32 @@ class Command(BaseCommand):
         else:
             self.stdout.write(f'  Analyst: analyst@breatheesg.com (already exists)')
 
+        # ===================================================================
+        # Reviewer Corp — COMPLETELY SEPARATE TENANT FOR EVALUATION
+        # ===================================================================
+        reviewer_tenant, created = Tenant.objects.get_or_create(
+            slug='reviewer-corp',
+            defaults={'name': 'Reviewer Corp'},
+        )
+        status = 'created' if created else 'already exists'
+        self.stdout.write(f'  Tenant: {reviewer_tenant.name} ({status})')
+
+        reviewer_user, created = User.objects.get_or_create(
+            username='reviewer@breatheesg.com',
+            defaults={
+                'email': 'reviewer@breatheesg.com',
+                'tenant': reviewer_tenant,
+                'role': 'analyst',
+                'is_staff': False,
+            },
+        )
+        if created:
+            reviewer_user.set_password('reviewer123')
+            reviewer_user.save()
+            self.stdout.write(self.style.SUCCESS('  Reviewer: reviewer@breatheesg.com / reviewer123 (created)'))
+        else:
+            self.stdout.write(f'  Reviewer: reviewer@breatheesg.com (already exists)')
+
         # Create data sources
         sources = [
             {'name': 'SAP Munich Plant', 'source_type': 'sap', 'description': 'Fuel and procurement data from SAP ME2M/MB51 exports'},
@@ -65,6 +91,7 @@ class Command(BaseCommand):
             {'name': 'Concur Travel Reports', 'source_type': 'travel', 'description': 'Corporate travel expense reports from SAP Concur'},
         ]
 
+        # Sources for Tenant 1 (Acme)
         for src in sources:
             ds, created = DataSource.objects.get_or_create(
                 tenant=tenant,
@@ -76,6 +103,21 @@ class Command(BaseCommand):
                 },
             )
             status = 'created' if created else 'already exists'
-            self.stdout.write(f"  Source: {src['name']} ({src['source_type']}) — {status}")
+            self.stdout.write(f"  Acme Source: {src['name']} ({src['source_type']}) — {status}")
+
+        # Sources for Tenant 2 (Reviewer Corp)
+        for src in sources:
+            ds, created = DataSource.objects.get_or_create(
+                tenant=reviewer_tenant,
+                name=src['name'],
+                defaults={
+                    'source_type': src['source_type'],
+                    'description': src['description'],
+                    'created_by': reviewer_user,
+                },
+            )
+            status = 'created' if created else 'already exists'
+            self.stdout.write(f"  Reviewer Source: {src['name']} ({src['source_type']}) — {status}")
 
         self.stdout.write(self.style.SUCCESS('\nDone! Demo data seeded successfully!'))
+
